@@ -63,7 +63,7 @@
                                         @enderror
                                     </div>
                                 </div>
-                                <div class="form-group">
+                                {{-- <div class="form-group">
                                     <label for="password-confirm"
                                         class="col-form-label">{{ __('Confirm Password') }}</label>
                                     <div class="form-input position-relative">
@@ -76,7 +76,7 @@
                                             </span>
                                         @enderror
                                     </div>
-                                </div>
+                                </div> --}}
                                 <div class="form-group mb-0">
                                     <div class="checkbox p-0">
                                         <input id="checkbox1" type="checkbox" name="agreed_with_privacy" class="@error('agreed_with_privacy') is-invalid @enderror" {{ old('agreed_with_privacy') == 'on' ? 'checked' : '' ; }}>
@@ -117,4 +117,81 @@
 
 @section('script')
     {!! NoCaptcha::renderJs() !!}
+
+    <script>
+        $(document).ready(function () {
+            $('#registrationForm').on('submit', function (e) {
+                e.preventDefault();
+
+                // Clear previous errors
+                $('.is-invalid').removeClass('is-invalid');
+                $('.invalid-feedback').remove();
+
+                let name = $('#name').val().trim();
+                let email = $('#email').val().trim();
+                let password = $('#password').val().trim();
+                let isValid = true;
+
+                // Frontend Validation
+                if (!email) {
+                    showError('#email', 'Email is required.');
+                    isValid = false;
+                } else if (!validateEmail(email)) {
+                    showError('#email', 'Please enter a valid email address.');
+                    isValid = false;
+                }
+
+                if (!name) {
+                    showError('#password', 'Password is required.');
+                    isValid = false;
+                }
+
+                if (!password) {
+                    showError('#password', 'Password is required.');
+                    isValid = false;
+                }
+
+                if (!isValid) return;
+
+                // Serialize form data
+                var formData = $(this).serialize();
+
+                $.ajax({
+                    url: '{{ route('api.register') }}',
+                    method: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        console.log(response);
+
+                        // if (response.redirect_url) {
+                        //     window.location.href = response.redirect_url;
+                        // } else {
+                        //     alert('Login successful.');
+                        //     // Optionally reload or redirect
+                        // }
+                    },
+                    error: function (xhr) {
+                        if (xhr.status === 422) {
+                            var errors = xhr.responseJSON.errors;
+                            $.each(errors, function (field, messages) {
+                                showError('[name="' + field + '"]', messages[0]);
+                            });
+                        } else {
+                            alert('Invalid credentials or server error.');
+                        }
+                    }
+                });
+            });
+
+            function showError(selector, message) {
+                $(selector).addClass('is-invalid');
+                $(selector).after('<span class="invalid-feedback d-block"><strong>' + message + '</strong></span>');
+            }
+
+            function validateEmail(email) {
+                var re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+        });
+    </script>
 @endsection

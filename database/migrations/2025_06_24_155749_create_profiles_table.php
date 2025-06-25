@@ -23,9 +23,7 @@ return new class extends Migration
             $table->string('city')->nullable();
             $table->string('state')->nullable();
             $table->string('zip_code')->nullable();
-            $table->string('country_id')->nullable()
-                ->constrained('countries')
-                ->cascadeOnDelete();
+            $table->string('country')->nullable();
             $table->string('profile_picture')->nullable();
             $table->text('bio')->nullable();
             $table->date('date_of_birth')->nullable();

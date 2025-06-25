@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->middleware(['auth:sanctum', 'signed'])
+    ->name('verification.verify');
+
 Route::name('api.')->group(function () {
     //Guest Api's
     Route::middleware('guest')->group(function () {
@@ -30,9 +34,6 @@ Route::name('api.')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
     });
 
-
-    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-        ->middleware(['signed'])->name('verification.verify');
 
     //Auth Apis
     Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->name('refresh-token');
