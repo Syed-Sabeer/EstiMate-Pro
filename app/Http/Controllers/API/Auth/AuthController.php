@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\WelcomeMail;
 use App\Models\Profile;
 use App\Models\User;
+use App\Models\UserPlan;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\JsonResponse;
@@ -94,6 +95,13 @@ class AuthController extends Controller
                 'user_id' => $user->id,
                 'first_name' => $request->name,
             ]);
+
+            $userPlan = new UserPlan();
+            $userPlan->user_id = $user->id;
+            $userPlan->plan_id = 1;
+            $userPlan->start_date = now();
+            $userPlan->end_date = now()->addDays(90);
+            $userPlan->save();
 
             // Send email verification notification
             $user->sendEmailVerificationNotification();

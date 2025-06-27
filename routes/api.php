@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\API\Auth\AuthController;
+use App\Http\Controllers\API\Dashboard\BuilderPricingController;
+use App\Http\Controllers\API\Dashboard\ClientSurveyController;
+use App\Http\Controllers\API\Dashboard\ProfileController;
+use App\Http\Controllers\API\Dashboard\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -45,5 +49,34 @@ Route::name('api.')->group(function () {
         Route::post('/email/verification-notification', [AuthController::class, 'sendVerificationNotification'])
             ->middleware('throttle:6,1')
             ->name('verification.send');
+
+        Route::middleware('check.activation')->group(function () {
+
+            Route::get('/current/user', [UserController::class, 'getCurrentUser']);
+
+            //Profile Apis
+            Route::apiResource('/profile', ProfileController::class);
+
+            Route::middleware('check.plan', 'check.activation')->group(function () {
+                //Builder Pricing Apis
+                Route::apiResource('/builder-pricing', BuilderPricingController::class);
+
+                //Builder's Client Surveys
+                Route::get('/client-surveys', [ClientSurveyController::class, 'index'])->name('client-surveys.index');
+                Route::delete('/client-surveys/{id}', [ClientSurveyController::class, 'destroy'])->name('client-surveys.delete');
+                Route::get('/client-surveys/show/{id}', [ClientSurveyController::class, 'show'])->name('client-surveys.show');
+                Route::post('/client-surveys/update-status/{id}', [ClientSurveyController::class, 'updateStatus'])->name('client-surveys.status.update');
+            });
+
+            Route::middleware('check.admin')->group(function () {
+                Route::get('/users', [UserController::class, 'getUsers']);
+                Route::get('/builders', [UserController::class, 'getBuilders']);
+                Route::get('/toggle-user-status/{id}', [UserController::class, 'toggleStatus']);
+                Route::get('/all-surveys', [ClientSurveyController::class, 'getAllSurveys']);
+            });
+        });
     });
+
+    //Client Survey Store
+    Route::post('/client-survey/store/{id}', [ClientSurveyController::class, 'store'])->name('client-survey.store');
 });

@@ -13,6 +13,7 @@ class Profile extends Model
         'user_id',
         'first_name',
         'last_name',
+        'business_name',
         'phone_number',
         'address',
         'city',
