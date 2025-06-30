@@ -20,7 +20,7 @@ class ProfileController extends Controller
         try {
             $user = Auth::user();
             $profile = Profile::with('user')
-            ->where('user_id', $user->id)->where('company_id', $user->company_id)->first();
+                ->where('user_id', $user->id)->first();
             return response()->json([
                 'message' => 'Profile retrieved successfully',
                 'profile' => $profile
@@ -75,15 +75,21 @@ class ProfileController extends Controller
 
         try {
             $user = Auth::user();
-            $profile = Profile::where('user_id', $request->user_id)->first();
-            if($profile->user->id != $user->id){
+            
+            // Check if the user_id in request matches the authenticated user
+            if ($request->user_id != $user->id) {
                 return response()->json([
                     'message' => 'You are not authorized to update this profile',
                 ], 401);
             }
-            if (!$profile){
+            
+            // Find existing profile or create new one
+            $profile = Profile::where('user_id', $request->user_id)->first();
+            if (!$profile) {
                 $profile = new Profile();
+                $profile->user_id = $request->user_id; // Set user_id for new profiles
             }
+            
             $profile->first_name = $request->first_name;
             $profile->last_name = $request->last_name;
             $profile->business_name = $request->business_name;
@@ -100,6 +106,7 @@ class ProfileController extends Controller
             $profile->marital_status = $request->marital_status;
             $profile->instagram_profile = $request->instagram_profile;
             $profile->facebook_profile = $request->facebook_profile;
+            
             if ($request->hasFile('profile_picture')) {
                 if (isset($profile->profile_picture) && File::exists(public_path($profile->profile_picture))) {
                     File::delete(public_path($profile->profile_picture));
@@ -117,7 +124,12 @@ class ProfileController extends Controller
                 $profile->profile_picture = $fullUrl;
                 $profile->profile_picture_size = $fileSize;
             }
+            
             $profile->save();
+            
+            // Load the profile with user relationship for response
+            $profile->load('user');
+            
             return response()->json([
                 'message' => 'Profile data stored successfully',
                 'profile' => $profile
