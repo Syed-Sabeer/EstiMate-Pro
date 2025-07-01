@@ -111,6 +111,7 @@ class ClientSurveyController extends Controller
             $survey->premium_area = $premiumArea;
             $survey->base_estimate = $estimateTotal;
             $survey->high_estimate = $highEstimate;
+            $survey->status = 'New'; // Set default status
 
             $surveyPhotos = [];
 
