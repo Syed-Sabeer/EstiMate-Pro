@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('item_name');
             $table->string('applicability');
             // $table->enum('applicability', ['All Estimates', 'Bathroom Only', 'Floor Only']);
-            $table->enum('price_type', ['m2', 'fixed']);
+            $table->enum('price_type', ['m2', 'linear_meter', 'fixed', 'hourly']);
             $table->double('base_price')->nullable();
             $table->double('markup_percent')->nullable();
             $table->double('final_price')->nullable();
