@@ -123,11 +123,16 @@ class BuilderPricingController extends Controller
         }
 
         try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => 'User not authenticated'], 401);
+            }
+
             $builderPricing = BuilderPricing::findOrFail($id);
 
-            // Optional: make sure the logged-in user owns this pricing
-            if ($builderPricing->user_id !== Auth::id()) {
-                return response()->json(['error' => 'Unauthorized'], 403);
+            // Check if the logged-in user owns this pricing
+            if ($builderPricing->user_id != $user->id) {
+                return response()->json(['error' => 'Unauthorized - You can only edit your own pricing'], 403);
             }
 
             $basePrice = $request->input('base_price');
@@ -163,11 +168,16 @@ class BuilderPricingController extends Controller
     public function destroy($id)
     {
         try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => 'User not authenticated'], 401);
+            }
+
             $builderPricing = BuilderPricing::findOrFail($id);
 
-            // Optional: Ensure only the owner can delete their pricing
-            if ($builderPricing->user_id !== Auth::id()) {
-                return response()->json(['error' => 'Unauthorized'], 403);
+            // Check if the logged-in user owns this pricing
+            if ($builderPricing->user_id != $user->id) {
+                return response()->json(['error' => 'Unauthorized - You can only delete your own pricing'], 403);
             }
 
             $builderPricing->delete();

@@ -52,7 +52,7 @@ class ClientSurveyController extends Controller
             'tiling_level' => 'required|in:Budget,Standard,Premium',
             'design_style' => 'nullable|string',
             'home_age_category' => 'nullable|string',
-            'photos' => 'nullable|array|max:5',
+            'photos' => 'nullable|array|max:10',
             'photos.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:5048',
         );
 
@@ -111,6 +111,8 @@ class ClientSurveyController extends Controller
             $survey->premium_area = $premiumArea;
             $survey->base_estimate = $estimateTotal;
             $survey->high_estimate = $highEstimate;
+            $survey->photos = json_encode([]); // Initialize with empty array
+            $survey->save(); // SAVE FIRST to get the ID
 
             $surveyPhotos = [];
 
@@ -118,16 +120,22 @@ class ClientSurveyController extends Controller
                 foreach ($request->photos as $photo) {
                     $photo_ext = $photo->getClientOriginalExtension();
                     $photo_name = $survey->id . '_' . time() . '_' . uniqid() . '.' . $photo_ext;
-                    $photo_path = 'public/client_surveys';
-                    $photo->move(public_path('client_surveys'), $photo_name);
-                    $fullUrl = url(str_replace('public/', '', $photo_path) . '/' . $photo_name);
+                    $photo_path = 'client_surveys'; // Fixed path
+                    
+                    // Create directory if it doesn't exist
+                    if (!file_exists(public_path($photo_path))) {
+                        mkdir(public_path($photo_path), 0777, true);
+                    }
+                    
+                    $photo->move(public_path($photo_path), $photo_name);
+                    $fullUrl = url($photo_path . '/' . $photo_name);
                     $surveyPhotos[] = $fullUrl;
                 }
+                
+                // Update the survey with photo URLs
+                $survey->photos = json_encode($surveyPhotos);
+                $survey->save();
             }
-
-            $survey->photos = json_encode($surveyPhotos);
-            $survey->save();
-
 
             return response()->json([
                 'message' => 'Client Survey stored successfully',
