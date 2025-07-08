@@ -63,11 +63,25 @@ class ClientSurveyController extends Controller
         }
 
         try {
-            $floorArea = $request->floor_length * $request->floor_width;
-            $wallArea = 2 * ($request->floor_length * $request->wall_height) + 2 * ($request->floor_width * $request->wall_height);
-            $totalArea = $request->total_area ?? ($floorArea + $wallArea);
+            // Calculate areas based on input method
+            $floorArea = 0;
+            $wallArea = 0;
+            $totalArea = 0;
+            
+            if ($request->floor_length && $request->floor_width && $request->wall_height) {
+                // Calculate from individual measurements (both calculate and dimensions options)
+                $floorArea = $request->floor_length * $request->floor_width;
+                $wallArea = 2 * ($request->floor_length * $request->wall_height) + 2 * ($request->floor_width * $request->wall_height);
+                $totalArea = $floorArea + $wallArea;
+            } else if ($request->total_area) {
+                // Use direct total area input
+                $totalArea = $request->total_area;
+                // For direct input, we'll use the total area for all calculations
+                $floorArea = $totalArea * 0.4; // Estimate 40% as floor
+                $wallArea = $totalArea * 0.6;  // Estimate 60% as walls
+            }
 
-            // Tiled area logic
+            // Tiled area logic based on tiling level
             $budgetArea = $floorArea + ($wallArea * 0.30);
             $standardArea = $floorArea + ($wallArea * 0.50);
             $premiumArea = $floorArea + ($wallArea * 1.00);
@@ -217,6 +231,7 @@ class ClientSurveyController extends Controller
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
+        
         try {
             $survey = ClientSurvey::findOrFail($id);
             if ($survey->user_id != Auth::user()->id) {
@@ -224,8 +239,10 @@ class ClientSurveyController extends Controller
                     'message' => 'You are not authorized to update this survey'
                 ], 403);
             }
-            $survey->status = $request->status;
-            $survey->save();
+            
+            // Use update method instead of direct assignment
+            $survey->update(['status' => $request->status]);
+            
             return response()->json([
                 'message' => 'Client Survey status updated successfully',
                 'survey' => $survey
