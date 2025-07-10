@@ -54,6 +54,11 @@ class ClientSurveyController extends Controller
             'home_age_category' => 'nullable|string',
             'photos' => 'nullable|array|max:10',
             'photos.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:5048',
+            // Additional fields for conditional calculations
+            'toilet_move' => 'nullable|string|in:stay,move',
+            'wall_change' => 'nullable|string|in:yes,no',
+            'include_tiles' => 'nullable|string|in:yes,no',
+            'property_type' => 'nullable|string',
         );
 
         $validator = Validator::make($request->all(), $rules);
@@ -70,8 +75,8 @@ class ClientSurveyController extends Controller
             
             if ($request->floor_length && $request->floor_width && $request->wall_height) {
                 // Calculate from individual measurements (both calculate and dimensions options)
-                $floorArea = $request->floor_length * $request->floor_width;
-                $wallArea = 2 * ($request->floor_length * $request->wall_height) + 2 * ($request->floor_width * $request->wall_height);
+            $floorArea = $request->floor_length * $request->floor_width;
+            $wallArea = 2 * ($request->floor_length * $request->wall_height) + 2 * ($request->floor_width * $request->wall_height);
                 $totalArea = $floorArea + $wallArea;
             } else if ($request->total_area) {
                 // Use direct total area input
@@ -86,24 +91,80 @@ class ClientSurveyController extends Controller
             $standardArea = $floorArea + ($wallArea * 0.50);
             $premiumArea = $floorArea + ($wallArea * 1.00);
 
-            // Estimate calculation
+            // Estimate calculation with enhanced logic
             $pricingItems = BuilderPricing::where('user_id', $id)->get();
             $estimateTotal = 0;
+            $conditionalItems = [];
 
+            // First pass: Calculate base items and identify conditional items
             foreach ($pricingItems as $item) {
-                if ($item->price_type === 'm2') {
-                    $area = match ($request->tiling_level) {
-                        'Budget' => $budgetArea,
-                        'Standard' => $standardArea,
-                        'Premium' => $premiumArea,
-                    };
-                    $estimateTotal += $area * $item->final_price;
+                $shouldInclude = true;
+                
+                // Check conditional logic based on applicability
+                if (str_contains($item->applicability, 'If customer selects same layout') && 
+                    $request->toilet_move === 'stay') {
+                    $shouldInclude = true;
+                } elseif (str_contains($item->applicability, 'If customer selects toilet will change') && 
+                         $request->toilet_move === 'move') {
+                    $shouldInclude = true;
+                } elseif (str_contains($item->applicability, 'If customer selects yes for tiles') && 
+                         $request->include_tiles === 'yes') {
+                    $shouldInclude = true;
+                } elseif (str_contains($item->applicability, 'If customer selects yes for niche')) {
+                    // For now, assume niche is included if premium tiling
+                    $shouldInclude = ($request->tiling_level === 'Premium');
+                } elseif (str_contains($item->applicability, 'If client selects lives in apartment') && 
+                         $request->property_type === 'Apartment') {
+                    $shouldInclude = true;
+                } elseif (str_contains($item->applicability, 'If customer selects yes to changes to wall layout') && 
+                         $request->wall_change === 'yes') {
+                    $shouldInclude = true;
+                } elseif (str_contains($item->applicability, 'All estimates')) {
+                    $shouldInclude = true;
                 } else {
-                    $estimateTotal += $item->final_price;
+                    // If it's a conditional item but conditions don't match, skip
+                    if (str_contains($item->applicability, 'If customer selects') || 
+                        str_contains($item->applicability, 'If client selects')) {
+                        $shouldInclude = false;
+                    }
+                }
+
+                if ($shouldInclude) {
+                    if ($item->price_type === 'm2') {
+                        $area = match ($request->tiling_level) {
+                            'Budget' => $budgetArea,
+                            'Standard' => $standardArea,
+                            'Premium' => $premiumArea,
+                        };
+                        $estimateTotal += $area * $item->final_price;
+                    } else {
+                        $estimateTotal += $item->final_price;
+                    }
                 }
             }
 
-            $highEstimate = $estimateTotal * 1.35;
+            // Calculate percentage-based items (builder's labour, etc.)
+            $percentageItems = $pricingItems->filter(function($item) {
+                return str_contains($item->price_type, '%');
+            });
+
+            foreach ($percentageItems as $item) {
+                if (str_contains($item->applicability, 'All estimates') || 
+                    (str_contains($item->applicability, 'If client selects lives in apartment') && $request->property_type === 'Apartment')) {
+                    
+                    $percentage = 0;
+                    if (str_contains($item->price_type, '% of all above line items')) {
+                        $percentage = 15; // Default 15% for builder's labour
+                    } elseif (str_contains($item->price_type, '% margin of all above line items')) {
+                        $percentage = 10; // Default 10% for access fees
+                    }
+                    
+                    $estimateTotal += ($estimateTotal * $percentage / 100);
+                }
+            }
+
+            // Calculate high estimate with 30% buffer (as per your description)
+            $highEstimate = $estimateTotal * 1.30;
 
             $survey = new ClientSurvey();
             $survey->user_id = $id;
