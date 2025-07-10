@@ -130,17 +130,17 @@ class ClientSurveyController extends Controller
                 }
 
                 if ($shouldInclude) {
-                    if ($item->price_type === 'm2') {
-                        $area = match ($request->tiling_level) {
-                            'Budget' => $budgetArea,
-                            'Standard' => $standardArea,
-                            'Premium' => $premiumArea,
-                        };
-                        $estimateTotal += $area * $item->final_price;
-                    } else {
-                        $estimateTotal += $item->final_price;
-                    }
+                if ($item->price_type === 'm2') {
+                    $area = match ($request->tiling_level) {
+                        'Budget' => $budgetArea,
+                        'Standard' => $standardArea,
+                        'Premium' => $premiumArea,
+                    };
+                    $estimateTotal += $area * $item->final_price;
+                } else {
+                    $estimateTotal += $item->final_price;
                 }
+            }
             }
 
             // Calculate percentage-based items (builder's labour, etc.)
