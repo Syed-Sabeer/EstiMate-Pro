@@ -43,7 +43,7 @@ class BuilderPricingController extends Controller
         $rules = array(
             'item_name' => 'required|string|max:255',
             'applicability' => 'required|string|max:255',
-            'price_type' => 'required|in:m2,linear_meter,fixed,hourly',
+            'price_type' => 'required|in:m2,linear_meter,fixed,hourly,percentage',
             'base_price' => 'nullable|numeric',
             'markup_percent' => 'nullable|numeric',
             'final_price' => 'nullable|numeric',
@@ -110,7 +110,7 @@ class BuilderPricingController extends Controller
         $rules = array(
             'item_name' => 'required|string|max:255',
             'applicability' => 'required|string|max:255',
-            'price_type' => 'required|in:m2,linear_meter,fixed,hourly',
+            'price_type' => 'required|in:m2,linear_meter,fixed,hourly,percentage',
             'base_price' => 'nullable|numeric',
             'markup_percent' => 'nullable|numeric',
             'final_price' => 'nullable|numeric',

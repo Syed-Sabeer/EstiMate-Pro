@@ -94,9 +94,9 @@ class ClientSurveyController extends Controller
             // Estimate calculation with enhanced logic
             $pricingItems = BuilderPricing::where('user_id', $id)->get();
             $estimateTotal = 0;
-            $conditionalItems = [];
+            $subtotal = 0; // Track subtotal for percentage calculations
 
-            // First pass: Calculate base items and identify conditional items
+            // First pass: Calculate base items (excluding percentage items)
             foreach ($pricingItems as $item) {
                 $shouldInclude = true;
                 
@@ -130,38 +130,44 @@ class ClientSurveyController extends Controller
                 }
 
                 if ($shouldInclude) {
-                if ($item->price_type === 'm2') {
-                    $area = match ($request->tiling_level) {
-                        'Budget' => $budgetArea,
-                        'Standard' => $standardArea,
-                        'Premium' => $premiumArea,
-                    };
-                    $estimateTotal += $area * $item->final_price;
-                } else {
-                    $estimateTotal += $item->final_price;
+                    if ($item->price_type === 'm2') {
+                        $area = match ($request->tiling_level) {
+                            'Budget' => $budgetArea,
+                            'Standard' => $standardArea,
+                            'Premium' => $premiumArea,
+                        };
+                        $itemTotal = $area * $item->final_price;
+                        $subtotal += $itemTotal;
+                    } elseif ($item->price_type === 'percentage') {
+                        // Skip percentage items in first pass - will calculate after subtotal
+                        continue;
+                    } else {
+                        $subtotal += $item->final_price;
+                    }
                 }
             }
-            }
 
-            // Calculate percentage-based items (builder's labour, etc.)
-            $percentageItems = $pricingItems->filter(function($item) {
-                return str_contains($item->price_type, '%');
-            });
-
-            foreach ($percentageItems as $item) {
-                if (str_contains($item->applicability, 'All estimates') || 
-                    (str_contains($item->applicability, 'If client selects lives in apartment') && $request->property_type === 'Apartment')) {
+            // Second pass: Calculate percentage items based on subtotal
+            foreach ($pricingItems as $item) {
+                if ($item->price_type === 'percentage') {
+                    $shouldInclude = false;
                     
-                    $percentage = 0;
-                    if (str_contains($item->price_type, '% of all above line items')) {
-                        $percentage = 15; // Default 15% for builder's labour
-                    } elseif (str_contains($item->price_type, '% margin of all above line items')) {
-                        $percentage = 10; // Default 10% for access fees
+                    // Check conditions for percentage items
+                    if (str_contains($item->applicability, 'All estimates')) {
+                        $shouldInclude = true;
+                    } elseif (str_contains($item->applicability, 'If client selects lives in apartment') && 
+                             $request->property_type === 'Apartment') {
+                        $shouldInclude = true;
                     }
                     
-                    $estimateTotal += ($estimateTotal * $percentage / 100);
+                    if ($shouldInclude) {
+                        $percentage = $item->final_price;
+                        $subtotal += ($subtotal * $percentage / 100);
+                    }
                 }
             }
+
+            $estimateTotal = $subtotal;
 
             // Calculate high estimate with 30% buffer (as per your description)
             $highEstimate = $estimateTotal * 1.30;
@@ -178,6 +184,10 @@ class ClientSurveyController extends Controller
             $survey->tiling_level = $request->tiling_level;
             $survey->design_style = $request->design_style;
             $survey->home_age_category = $request->home_age_category;
+            $survey->toilet_move = $request->toilet_move;
+            $survey->wall_change = $request->wall_change;
+            $survey->include_tiles = $request->include_tiles;
+            $survey->property_type = $request->property_type;
             $survey->calculated_floor_area = $floorArea;
             $survey->calculated_wall_area = $wallArea;
             $survey->calculated_total_area = $totalArea;
