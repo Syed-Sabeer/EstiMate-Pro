@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BuilderPricing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class BuilderPricingController extends Controller
@@ -40,6 +41,9 @@ class BuilderPricingController extends Controller
      */
     public function store(Request $request)
     {
+        // Debug: Log the received data
+        Log::info('BuilderPricing store request:', $request->all());
+        
         $rules = array(
             'item_name' => 'required|string|max:255',
             'applicability' => 'required|string|max:255',
@@ -52,6 +56,7 @@ class BuilderPricingController extends Controller
         $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
+            Log::error('BuilderPricing validation failed:', $validator->errors()->toArray());
             return response()->json($validator->errors(), 422);
         }
 
@@ -173,7 +178,14 @@ class BuilderPricingController extends Controller
                 return response()->json(['error' => 'User not authenticated'], 401);
             }
 
-            $builderPricing = BuilderPricing::findOrFail($id);
+            $builderPricing = BuilderPricing::find($id);
+
+            // If pricing doesn't exist, return success (idempotent delete)
+            if (!$builderPricing) {
+                return response()->json([
+                    'message' => 'Builder Pricing not found or already deleted'
+                ], 200);
+            }
 
             // Check if the logged-in user owns this pricing
             if ($builderPricing->user_id != $user->id) {
